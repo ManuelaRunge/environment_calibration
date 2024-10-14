@@ -1,4 +1,5 @@
 # environment_calibration
+This repository includes scripts to calibrate transmission intensity and seasonality parameters for EMOD-malaria.
 
 ## Instructions
 
