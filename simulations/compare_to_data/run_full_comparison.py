@@ -211,9 +211,8 @@ def plot_all_comparisons(param_sets_to_plot=None,plt_dir=os.path.join(manifest.s
     return 
    
 if __name__ == "__main__":
-
-    workdir="/projects/b1139/environmental_calibration/simulations/output/241007_test2/"
-    site="Nanoro"
+    #print(compute_scores_across_site("siaya"))
+    workdir="/projects/b1139/ipti_pmc/environment_calibration/simulations/output/siaya_tobias7"  # FIXME
     n=0
     #print(compute_scores_across_site(site))
     # mEIR = save_maxEIR(site=site, wdir = f"{workdir}/LF_{n}")

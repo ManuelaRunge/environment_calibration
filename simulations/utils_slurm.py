@@ -136,17 +136,17 @@ def shell_header_quest(A='b1139', p='b1139', t='02:00:00', N=1,
         out = '#SBATCH --output=logs/slurm_%A_%a.out\n'
         header = header + array + err + out #+ constraint
     else:
-        err = f'#SBATCH --error=/projects/b1139/environmental_calibration/simulations/logs/{job_name}.%j.err\n'
-        out = f'#SBATCH --output=/projects/b1139/environmental_calibration/simulations/logs/{job_name}.%j.out\n'
+        err = f'#SBATCH --error=/projects/b1139/ipti_pmc/environment_calibration/simulations/logs/{job_name}.%j.err\n'
+        out = f'#SBATCH --output=/projects/b1139/ipti_pmc/environment_calibration/simulations/logs/{job_name}.%j.out\n'
         header = header + err + out #+ constraint
     return header
         
 def submit_scheduled_analyzer(experiment, platform, site, analyzer_script, mem=20000):
     wdir = os.path.abspath(os.path.dirname(__file__))
     ## Write bash file to submit
-    header_post = shell_header_quest(job_name=f'analyze_exp', t='06:00:00', mem=mem, c='8')
+    header_post = shell_header_quest(job_name=f'analyze_exp', t='02:00:00', mem=mem, c='8')
     pymodule = '\n\nmodule purge all' \
-               '\nsource activate /projects/b1139/environments/emodpy-torch\n'
+               '\nsource /projects/b1139/environments/emodpy_pmc/bin/activate\n'
     ### pycommand(s) - additional python or R scripts to directly run after analyzer can be added below
     pycommand = f'\ncd {wdir}' \
                 f'\npython {analyzer_script} --site {site} --expid {experiment.id}' 
@@ -167,6 +167,7 @@ def submit_scheduled_analyzer(experiment, platform, site, analyzer_script, mem=2
     file.write(header_post_wait + pymodule + batchcommand)
     file.close()
     
+    ## get job_id
     job_id = platform._op_client.get_job_id(experiment.id, experiment.item_type)
     job_id = job_id[0]
     script_path = os.path.join(wdir,f'wait_analyzer_{experiment.uid}.sh') #,'analyzers','batch' # save under different names, will require cleanup
@@ -188,9 +189,8 @@ def submit_scheduled_analyzer(experiment, platform, site, analyzer_script, mem=2
     else:
         print("Problem with scheduled analyzer job id")
         exit(1)
-
+    print(f"Site: {site}")
     print(f"Experiment job id: {job_id}")
     print(f"Analyzer job id: {job_id_analyzer}")
-    
     #return (job_id_analyzer)  # if needed to add another dependency slurm submission
     return () 
