@@ -50,6 +50,7 @@ coord_df.loc[coord_df['option'] == 'site', 'value'] = site_df.site.iloc[0]
 coord_df.loc[coord_df['option'] == 'lat', 'value'] = str(site_df.lat.iloc[0])
 coord_df.loc[coord_df['option'] == 'lon', 'value'] = str(site_df.lon.iloc[0])
 coord_df.loc[coord_df['option'] == 'exp_label', 'value'] = str(exp_label)
+coord_df.loc[coord_df['option'] == 'demographics_filepath', 'value'] = f'demographics_files/{Site}_demographics.json'
 coord_df.to_csv(manifest.simulation_coordinator_path, index=False)
 
 ####################################
