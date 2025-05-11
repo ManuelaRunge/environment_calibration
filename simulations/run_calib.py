@@ -38,7 +38,7 @@ site_df = pd.read_csv(manifest.site_coordinator_path)
 site_df = site_df[site_df.index == site_index]
 site_df = site_df.reset_index(drop=True)
 Site= site_df.site[0]
-Site_no_space = Site.replace('','_')
+Site_no_space = Site.replace(' ','_')
 exp_label = f'{Site_no_space}_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
 # exp_label = f'{Site}_trial_30'
 # {datetime.now().strftime("%Y%m%d_%H%M%S")}
