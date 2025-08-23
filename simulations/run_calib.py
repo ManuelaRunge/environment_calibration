@@ -2,6 +2,7 @@
 # standard packages
 import os
 import sys
+from pathlib import Path
 import shutil
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -11,33 +12,37 @@ from gpytorch.constraints import GreaterThan
 from datetime import datetime
 # from local directory
 import manifest as manifest
+
 sys.path.append("../calibration_common")
 # from calibration_common
-from batch_generators.turbo_thompson_sampling import TurboThompsonSampling 
-from emulators.GP import ExactGP   
-from bo import BO 
+from batch_generators.turbo_thompson_sampling import TurboThompsonSampling
+from emulators.GP import ExactGP
+from bo import BO
 from post_calibration_analysis import post_calibration_analysis
+
 # from environment_calibration_common
 sys.path.append("../environment_calibration_common")
 from clean_all import clean_analyzers, clean_logs, clean_COMPS_ID
 from translate_parameters import translate_parameters
 from helpers import load_coordinator_df
 from my_func import my_func as myFunc
+
 sys.path.append("../environment_calibration_common/compare_to_data")
-from run_full_comparison import plot_allAge_prevalence,plot_incidence,compute_scores_across_site,save_rangeEIR,save_AnnualIncidence,plot_pfpr_microscopy 
-
+from run_full_comparison import plot_allAge_prevalence, plot_incidence, compute_scores_across_site, save_rangeEIR, \
+    save_AnnualIncidence, plot_pfpr_microscopy
 
 ####################################
 # Experiment details - this is the only section you need to edit with the script
 ####################################
 # Experiment details - this is the only section you need to edit with the script
 
-site_index =6 # TODO add site_index as an argument to parse
+site_index = 0  # TODO add site_index as an argument to parse
 site_df = pd.read_csv(manifest.site_coordinator_path)
 site_df = site_df[site_df.index == site_index]
 site_df = site_df.reset_index(drop=True)
-Site= site_df.site[0]
-exp_label = f'{Site}_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
+Site = site_df.site[site_index]
+Site_no_space = Site.replace(' ', '_')
+exp_label = f'{Site_no_space}_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
 # exp_label = f'{Site}_trial_30'
 # {datetime.now().strftime("%Y%m%d_%H%M%S")}
 ####################################
@@ -48,40 +53,42 @@ coord_df.loc[coord_df['option'] == 'site', 'value'] = site_df.site.iloc[0]
 coord_df.loc[coord_df['option'] == 'lat', 'value'] = str(site_df.lat.iloc[0])
 coord_df.loc[coord_df['option'] == 'lon', 'value'] = str(site_df.lon.iloc[0])
 coord_df.loc[coord_df['option'] == 'exp_label', 'value'] = str(exp_label)
+coord_df.loc[coord_df['option'] == 'demographics_filepath', 'value'] = f'demographics_files/{Site}_demographics.json'
 coord_df.to_csv(manifest.simulation_coordinator_path, index=False)
 
 ####################################
 
 output_dir = f"output/{exp_label}"
-best_dir = f"output/{exp_label}" 
+best_dir = f"output/{exp_label}"
 
 calib_coord = pd.read_csv(manifest.calibration_coordinator_path)
 
 # Botorch details
 calib_coord = calib_coord.set_index("site")
-init_samples=int(calib_coord.at[Site,"init_size"])
-init_batches =  int(calib_coord.at[Site,"init_batches"])  
+init_samples = int(calib_coord.at[Site, "init_size"])
+init_batches = int(calib_coord.at[Site, "init_batches"])
 emulator_batch_size = int(calib_coord.at[Site, 'batch_size'])
 gp_max_eval = int(calib_coord.at[Site, 'max_eval'])
 failure_limit = int(calib_coord.at[Site, 'failure_limit'])
-success_limit = int(calib_coord.at[Site,'success_limit'])
+success_limit = int(calib_coord.at[Site, 'success_limit'])
 
-param_key=pd.read_csv("parameter_key.csv")
+param_key = pd.read_csv("parameter_key.csv")
 
-coord_df=load_coordinator_df()
-incidence_agebin=float(coord_df.at['incidence_comparison_agebin','value'])
-prevalence_agebin=float(coord_df.at['prevalence_comparison_agebin','value'])
-prevalence_agebin_U2=float(coord_df.at['prevalence_comparison_agebin_U2','value'])
+coord_df = load_coordinator_df()
+incidence_agebin = float(coord_df.at['incidence_comparison_agebin', 'value'])
+prevalence_agebin = float(coord_df.at['prevalence_comparison_agebin', 'value'])
+prevalence_agebin_U2 = float(coord_df.at['prevalence_comparison_agebin_U2', 'value'])
+
 
 # Define the Problem, it must be a functor
 class Problem:
-    def __init__(self,workdir="checkpoints/emod"):
-        self.dim = int(param_key.shape[0])  #4 # mandatory dimension
-        self.ymax = None #max value
+    def __init__(self, workdir="checkpoints/emod"):
+        self.dim = int(param_key.shape[0])  # 4 # mandatory dimension
+        self.ymax = None  # max value
         self.best = None
         self.n = 0
         self.workdir = workdir
-        
+
         try:
             self.ymax = np.loadtxt(f"{self.workdir}/emod.ymax.txt").astype(float)
             self.n = np.loadtxt(f"{self.workdir}/emod.n.txt").astype(int)
@@ -92,22 +99,21 @@ class Problem:
 
     # The input is a vector that contains multiple set of parameters to be evaluated
     def __call__(self, X):
-        
-        
-        wdir=os.path.join(f"{self.workdir}/LF_{self.n}")
-        os.makedirs(wdir,exist_ok=True)
-            
-        Y0=myFunc(X,wdir)
+
+        wdir = os.path.join(f"{self.workdir}/LF_{self.n}")
+        os.makedirs(wdir, exist_ok=True)
+
+        Y0 = myFunc(X, wdir)
         # Clean up any non-score columns returned by myfunc
         ps = Y0['param_set']
         Y0 = Y0.filter(like='_score')
-        Y0['param_set']=ps
+        Y0['param_set'] = ps
         # Get sum of scores per param set
         Y1 = pd.melt(Y0, id_vars="param_set")
         Y1 = Y1.groupby("param_set")['value'].agg('sum').reset_index(name='score')
-        params=Y1['param_set']
+        params = Y1['param_set']
         # Negate score (for maximimzing)
-        Y=Y1['score']*-1.0
+        Y = Y1['score'] * -1.0
         xc = []
         yc = []
         pc = []
@@ -118,73 +124,73 @@ class Problem:
                 xc.append(X[j].tolist())
                 yc.append([Y[j]])
                 pc.append(params[j])
-        xc2=[tuple(i) for i in xc]
-        links=dict(zip(xc2,yc)) 
-        pset=dict(zip(pc,yc))
+        xc2 = [tuple(i) for i in xc]
+        links = dict(zip(xc2, yc))
+        pset = dict(zip(pc, yc))
 
         # If new best value is found, save it and some other data
         if self.ymax is None:
             self.ymax = max(links.values())
-            best_x = max(links,key=links.get)
-            best_p = max(pset,key=pset.get)
-            self.best = translate_parameters(param_key,best_x,best_p)
-            os.makedirs(os.path.join(f"{self.workdir}/LF_{self.n}"),exist_ok=True)
+            best_x = max(links, key=links.get)
+            best_p = max(pset, key=pset.get)
+            self.best = translate_parameters(param_key, best_x, best_p)
+            os.makedirs(os.path.join(f"{self.workdir}/LF_{self.n}"), exist_ok=True)
             np.savetxt(f"{self.workdir}/emod.ymax.txt", self.ymax)
             np.savetxt(f"{self.workdir}/LF_{self.n}/emod.ymax.txt", self.ymax)
             self.best.to_csv(f"{self.workdir}/LF_{self.n}/emod.best.csv")
             Y0['round'] = [self.n] * len(Y0)
             Y0.to_csv(f"{self.workdir}/all_LL.csv")
-            mEIR = save_rangeEIR(site=Site, wdir = f"{self.workdir}/LF_{self.n}")
+            mEIR = save_rangeEIR(site=Site, wdir=f"{self.workdir}/LF_{self.n}")
             mEIR.to_csv(f"{self.workdir}/LF_{self.n}/EIR_range.csv")
-           
-            if(coord_df.at["incidence_comparison","value"]):
-                ACI = save_AnnualIncidence(site=Site,agebin=incidence_agebin, 
-                                           wdir =f"{self.workdir}/LF_{self.n}")
+
+            if (coord_df.at["incidence_comparison", "value"]):
+                ACI = save_AnnualIncidence(site=Site, agebin=incidence_agebin,
+                                           wdir=f"{self.workdir}/LF_{self.n}")
                 ACI.to_csv(f"{self.workdir}/LF_{self.n}/ACI.csv")
                 plot_incidence(site=Site, agebin=incidence_agebin,
-                               plt_dir=os.path.join(f"{self.workdir}/LF_{self.n}"), 
+                               plt_dir=os.path.join(f"{self.workdir}/LF_{self.n}"),
                                wdir=os.path.join(f"{self.workdir}/LF_{self.n}"))
-            if(coord_df.at["prevalence_comparison","value"]):
-                if(coord_df.at["prevalence_comparison_diagnostic","value"]=="PCR"):
-                    plot_allAge_prevalence(site=Site, 
-                                           plt_dir=os.path.join(f"{self.workdir}/LF_{self.n}"), 
+            if (coord_df.at["prevalence_comparison", "value"]):
+                if (coord_df.at["prevalence_comparison_diagnostic", "value"] == "PCR"):
+                    plot_allAge_prevalence(site=Site,
+                                           plt_dir=os.path.join(f"{self.workdir}/LF_{self.n}"),
                                            wdir=os.path.join(f"{self.workdir}/LF_{self.n}"))
-                if(coord_df.at["prevalence_comparison_diagnostic","value"]=="Microscopy"):
+                if (coord_df.at["prevalence_comparison_diagnostic", "value"] == "Microscopy"):
                     plot_pfpr_microscopy(site=Site,
                                          plt_dir=os.path.join(f"{self.workdir}/LF_{self.n}"),
                                          wdir=os.path.join(f"{self.workdir}/LF_{self.n}"),
                                          agebin=prevalence_agebin)
-            shutil.copytree(f"{manifest.simulation_output_filepath}",f"{self.workdir}/LF_{self.n}/SO")
+            shutil.copytree(f"{manifest.simulation_output_filepath}", f"{self.workdir}/LF_{self.n}/SO")
             self.n += 1
             np.savetxt(f"{self.workdir}/emod.n.txt", [self.n])
             clean_analyzers()
-            #clean_logs()
+            # clean_logs()
             clean_COMPS_ID()
         else:
-            os.makedirs(os.path.join(f"{self.workdir}/LF_{self.n}"),exist_ok=True)
+            os.makedirs(os.path.join(f"{self.workdir}/LF_{self.n}"), exist_ok=True)
             # Only create plots or update emod.best and emod.ymax if fit improves
             if max(links.values())[0] > self.ymax:
-                self.ymax = max(links.values()) #weighted_lf
-                best_x = max(links,key=links.get)
-                best_p = max(pset,key=pset.get)
-                self.best = translate_parameters(param_key,best_x,best_p)
+                self.ymax = max(links.values())  # weighted_lf
+                best_x = max(links, key=links.get)
+                best_p = max(pset, key=pset.get)
+                self.best = translate_parameters(param_key, best_x, best_p)
                 self.best.to_csv(f"{self.workdir}/LF_{self.n}/emod.best.csv")
-                mEIR = save_rangeEIR(site=Site, wdir = f"{self.workdir}/LF_{self.n}")
+                mEIR = save_rangeEIR(site=Site, wdir=f"{self.workdir}/LF_{self.n}")
                 mEIR.to_csv(f"{self.workdir}/LF_{self.n}/EIR_range.csv")
-               
-                if(coord_df.at["incidence_comparison","value"]):
-                    ACI = save_AnnualIncidence(site=Site,agebin=incidence_agebin, 
-                                               wdir =f"{self.workdir}/LF_{self.n}")
+
+                if (coord_df.at["incidence_comparison", "value"]):
+                    ACI = save_AnnualIncidence(site=Site, agebin=incidence_agebin,
+                                               wdir=f"{self.workdir}/LF_{self.n}")
                     ACI.to_csv(f"{self.workdir}/LF_{self.n}/ACI.csv")
                     plot_incidence(site=Site, agebin=incidence_agebin,
-                                   plt_dir=os.path.join(f"{self.workdir}/LF_{self.n}"), 
+                                   plt_dir=os.path.join(f"{self.workdir}/LF_{self.n}"),
                                    wdir=os.path.join(f"{self.workdir}/LF_{self.n}"))
-                if(coord_df.at["prevalence_comparison","value"]):
-                    if(coord_df.at["prevalence_comparison_diagnostic","value"]=="PCR"):
-                        plot_allAge_prevalence(site=Site, 
-                                               plt_dir=os.path.join(f"{self.workdir}/LF_{self.n}"), 
+                if (coord_df.at["prevalence_comparison", "value"]):
+                    if (coord_df.at["prevalence_comparison_diagnostic", "value"] == "PCR"):
+                        plot_allAge_prevalence(site=Site,
+                                               plt_dir=os.path.join(f"{self.workdir}/LF_{self.n}"),
                                                wdir=os.path.join(f"{self.workdir}/LF_{self.n}"))
-                    if(coord_df.at["prevalence_comparison_diagnostic","value"]=="Microscopy"):
+                    if (coord_df.at["prevalence_comparison_diagnostic", "value"] == "Microscopy"):
                         plot_pfpr_microscopy(site=Site,
                                              plt_dir=os.path.join(f"{self.workdir}/LF_{self.n}"),
                                              wdir=os.path.join(f"{self.workdir}/LF_{self.n}"),
@@ -192,22 +198,22 @@ class Problem:
                 np.savetxt(f"{self.workdir}/emod.ymax.txt", [self.ymax])
                 np.savetxt(f"{self.workdir}/LF_{self.n}/emod.ymax.txt", [self.ymax])
             Y0['round'] = [self.n] * len(Y0)
-            score_df=pd.read_csv(f"{self.workdir}/all_LL.csv")
-            score_df=pd.concat([score_df,Y0])
+            score_df = pd.read_csv(f"{self.workdir}/all_LL.csv")
+            score_df = pd.concat([score_df, Y0])
             score_df.to_csv(f"{self.workdir}/all_LL.csv")
-            shutil.copytree(f"{manifest.simulation_output_filepath}",f"{self.workdir}/LF_{self.n}/SO")
+            shutil.copytree(f"{manifest.simulation_output_filepath}", f"{self.workdir}/LF_{self.n}/SO")
             self.n += 1
             np.savetxt(f"{self.workdir}/emod.n.txt", [self.n])
             clean_analyzers()
-            #clean_logs()
+            # clean_logs()
             clean_COMPS_ID()
-        return torch.tensor(xc,dtype=torch.float64), torch.tensor(yc)
+        return torch.tensor(xc, dtype=torch.float64), torch.tensor(yc)
 
-problem = Problem(workdir=f"output/{exp_label}")
+
+problem = Problem(workdir=Path(f"output/{exp_label}"))
 
 # at beginning of workflow, cleanup all sbatch scripts for analysis
 clean_analyzers()
-
 
 # Create the GP model
 # See emulators/GP.py for a list of GP models
@@ -215,18 +221,18 @@ clean_analyzers()
 model = ExactGP(noise_constraint=GreaterThan(1e-6))
 
 # Create batch generator(s)
-tts = TurboThompsonSampling(batch_size=emulator_batch_size, 
+tts = TurboThompsonSampling(batch_size=emulator_batch_size,
                             failure_tolerance=failure_limit,
-                            success_tolerance=success_limit, 
-                            dim=problem.dim) #64
+                            success_tolerance=success_limit,
+                            dim=problem.dim)  # 64
 
 # Create the workflow
 bo = BO(problem=problem, model=model, batch_generator=tts, checkpointdir=output_dir, max_evaluations=gp_max_eval)
 
 # Sample and evaluate sets of parameters randomly drawn from the unit cube
-#bo.initRandom(2)
+# bo.initRandom(2)
 
-bo.initRandom(init_samples,n_batches = init_batches)
+bo.initRandom(init_samples, n_batches=init_batches)
 
 # Run the optimization loop
 bo.run()
@@ -238,11 +244,10 @@ bo.run()
 # process. By default, all relevant steps are included
 
 post_calibration_analysis(experiment=exp_label,
-                          length_scales_by_objective=False,           # Fit single-task GP per site-metric (within-host only)
-                          length_scales_by_environment_objective=True,# Fit single-task GP per score_type  (environment only)
-                          length_scales_plot=True,                    # Plot length-scales for overall score
-                          prediction_plot=True,                       # Plot predictions, starting @ exclude_count
+                          length_scales_by_objective=False,  # Fit single-task GP per site-metric (within-host only)
+                          length_scales_by_environment_objective=True,
+                          # Fit single-task GP per score_type  (environment only)
+                          length_scales_plot=True,  # Plot length-scales for overall score
+                          prediction_plot=True,  # Plot predictions, starting @ exclude_count
                           exclude_count=init_samples,
-                          timer_plot=True)                            # Plot emulator and acquisition timing
-
-
+                          timer_plot=True)  # Plot emulator and acquisition timing
