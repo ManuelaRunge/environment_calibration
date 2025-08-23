@@ -1,22 +1,20 @@
-
 # This is a user-modifiable Python file designed to be a set of simple input file and directory settings that you can choose and change.
 from pathlib import Path
 import os
 
-VENV_PATH = '/gpfs/home/upf3610/environments/pytorch_test_rwema'
+VENV_PATH = Path('/gpfs/projects/b1139/environments/emodpy_pmc/')
 
 CURRENT_DIR = Path(__file__).resolve().parent
-PROJECT_DIR = CURRENT_DIR.parent
-
-job_directory = PROJECT_DIR / 'experiments'
-os.makedirs(job_directory, exist_ok=True)
+GIT_DIR = CURRENT_DIR.parent
+PROJECT_DIR = Path("/gpfs/projects/b1139/ipti_pmc/_mrm9534/environment_calibration/")
 
 input_files_path = PROJECT_DIR / "simulation_inputs"
 simulation_coordinator_path = input_files_path / "simulation_coordinator.csv"
 calibration_coordinator_path = input_files_path / "calibration_coordinator.csv"
 site_coordinator_path = input_files_path / "site_coordinator.csv"
 
-DOWNLOAD_DIR = CURRENT_DIR / "download" / "bin_230614_PT"
+# DOWNLOAD_DIR = CURRENT_DIR / "download" / "bin_230614_PT"
+DOWNLOAD_DIR = Path.home() / "download"
 # The script is going to use this to store the downloaded schema file. Create 'download' directory or change to your preferred (existing) location.
 schema_file = DOWNLOAD_DIR / "schema.json"
 # The script is going to use this to store the downloaded Eradication binary. Create 'download' directory or change to your preferred (existing) location.
@@ -25,22 +23,24 @@ plugins_folder = DOWNLOAD_DIR / "reporter_plugins"
 # Create 'Assets' directory or change to a path you prefer. idmtools will upload files found here.
 assets_input_dir = CURRENT_DIR / "Assets"
 # analyzed_ouptut_path = PROJECT_DIR / "EMOD_validation_recalibration" / "simulation_output"
-comps_id_folder = PROJECT_DIR/"simulations" / "COMPS_ID"
+comps_id_folder = GIT_DIR / "simulations" / "COMPS_ID"
 # comps_id_folder = CURRENT_DIR / "COMPS_ID"
 suite_id_file = comps_id_folder / 'Suite'
 version_file = comps_id_folder / "version.txt"
 eradication_found = comps_id_folder / 'eradication_found'
 sif_id = comps_id_folder / 'sif.id'
 
-simulation_input_filepath = PROJECT_DIR / "simulation_inputs" #CURRENT_DIR / "output"
-simulation_output_filepath = PROJECT_DIR / "simulation_outputs" #CURRENT_DIR / "output"
-benchmark_simulation_filepath = PROJECT_DIR / "simulation_outputs" #CURRENT_DIR / "output"
+simulation_input_filepath = PROJECT_DIR / "simulation_inputs"  # CURRENT_DIR / "output"
 base_script_plot_filepath = PROJECT_DIR / "create_plots"
 base_reference_filepath = PROJECT_DIR / "reference_datasets"
-plot_output_filepath = PROJECT_DIR / "report" / "_plots"
-python_plot_output_filepath = PROJECT_DIR / "report" / "_plots_Python"
+# plot_output_filepath = PROJECT_DIR / "report" / "_plots"
+# python_plot_output_filepath = PROJECT_DIR / "report" / "_plots_Python"
 
 
+simulation_output_filepath = Path("/gpfs/projects/b1139/ipti_pmc/_mrm9534/env_calib_outputs/")
+benchmark_simulation_filepath = Path("/gpfs/projects/b1139/ipti_pmc/_mrm9534/env_calib_outputs/")
+plot_output_filepath = Path("/gpfs/projects/b1139/ipti_pmc/_mrm9534/env_calib_plots/")
+python_plot_output_filepath = Path("/gpfs/projects/b1139/ipti_pmc/_mrm9534/env_calib_plots_Python")
 
 sweep_sim_coordinator_path = input_files_path / "sweep_sim_coordinator.csv"
 
@@ -48,7 +48,7 @@ my_ep4_assets = None
 requirements = PROJECT_DIR / "requirements.txt"
 
 # Define Comps platform
-platform_name = "SLURM_LOCAL" #"Calculon"
+platform_name = "SLURM_LOCAL"  # "Calculon"
 priority = 'BelowNormal'
 node_group_private = 'idm_48cores'
 node_group = 'idm_abcd'
