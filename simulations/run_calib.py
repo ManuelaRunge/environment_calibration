@@ -29,7 +29,7 @@ from my_func import my_func as myFunc
 
 sys.path.append("../environment_calibration_common/compare_to_data")
 from run_full_comparison import plot_allAge_prevalence, plot_incidence, compute_scores_across_site, save_rangeEIR, \
-    save_AnnualIncidence, plot_pfpr_microscopy
+    save_AnnualIncidence, plot_pfpr_microscopy_combined
 
 ####################################
 # Experiment details - this is the only section you need to edit with the script
@@ -156,10 +156,9 @@ class Problem:
                                            plt_dir=os.path.join(f"{self.workdir}/LF_{self.n}"),
                                            wdir=os.path.join(f"{self.workdir}/LF_{self.n}"))
                 if (coord_df.at["prevalence_comparison_diagnostic", "value"] == "Microscopy"):
-                    plot_pfpr_microscopy(site=Site,
-                                         plt_dir=os.path.join(f"{self.workdir}/LF_{self.n}"),
-                                         wdir=os.path.join(f"{self.workdir}/LF_{self.n}"),
-                                         agebin=prevalence_agebin)
+                    plot_pfpr_microscopy_combined(site=Site,
+                                                  plt_dir=os.path.join(f"{self.workdir}/LF_{self.n}"),
+                                                  wdir=os.path.join(f"{self.workdir}/LF_{self.n}"))
             shutil.copytree(f"{manifest.simulation_output_filepath}", f"{self.workdir}/LF_{self.n}/SO")
             self.n += 1
             np.savetxt(f"{self.workdir}/emod.n.txt", [self.n])
@@ -191,10 +190,9 @@ class Problem:
                                                plt_dir=os.path.join(f"{self.workdir}/LF_{self.n}"),
                                                wdir=os.path.join(f"{self.workdir}/LF_{self.n}"))
                     if (coord_df.at["prevalence_comparison_diagnostic", "value"] == "Microscopy"):
-                        plot_pfpr_microscopy(site=Site,
-                                             plt_dir=os.path.join(f"{self.workdir}/LF_{self.n}"),
-                                             wdir=os.path.join(f"{self.workdir}/LF_{self.n}"),
-                                             agebin=prevalence_agebin)
+                        plot_pfpr_microscopy_combined(site=Site,
+                                                      plt_dir=os.path.join(f"{self.workdir}/LF_{self.n}"),
+                                                      wdir=os.path.join(f"{self.workdir}/LF_{self.n}"))
                 np.savetxt(f"{self.workdir}/emod.ymax.txt", [self.ymax])
                 np.savetxt(f"{self.workdir}/LF_{self.n}/emod.ymax.txt", [self.ymax])
             Y0['round'] = [self.n] * len(Y0)
